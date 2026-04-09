@@ -8,6 +8,8 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
@@ -23,6 +25,23 @@ export function AuthProvider({ children }) {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+  const hash = window.location.hash
+  if (hash.includes('access_token')) {
+    const params = new URLSearchParams(hash.replace('#', ''))
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
+
+    if (access_token && refresh_token) {
+      supabase.auth.setSession({ access_token, refresh_token })
+        .then(() => {
+          // Clean the tokens out of the URL
+          window.history.replaceState(null, '', window.location.pathname)
+        })
+    }
+  }
+}, [])
 
   async function fetchProfile(userId) {
     const { data } = await supabase

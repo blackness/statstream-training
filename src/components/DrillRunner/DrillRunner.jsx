@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useDrill } from '../../hooks/useDrill'
 import ScoreBar from './ScoreBar'
+import CameraTracker from './CameraTracker'
 
 export default function DrillRunner({ drill, spots, playerId, onComplete }) {
   const [mode, setMode] = useState('by25')
@@ -26,6 +27,8 @@ export default function DrillRunner({ drill, spots, playerId, onComplete }) {
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50) }, [spotIndex, round, mode, activeRoundSpot])
   useEffect(() => { setInput(''); setRoundInputs(Array(spots.length).fill('')); setActiveRoundSpot(0); setError('') }, [mode])
+
+  const [cameraActive, setCameraActive] = useState(false)
 
   function handleBy5KeyDown(e) {
     if (e.key !== 'Enter') return
@@ -113,8 +116,27 @@ export default function DrillRunner({ drill, spots, playerId, onComplete }) {
         {[['by25', isQuota ? `Round (${roundQuota})` : 'By 25'], ['byRound', 'By Spot'], ['bySpot', 'One Spot']].map(([key, label]) => (
           <button key={key} onClick={() => setMode(key)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', background: mode === key ? '#f97316' : 'transparent', color: mode === key ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>{label}</button>
         ))}
-      </div>
 
+
+      </div>
+        <button
+  onClick={() => setCameraActive(true)}
+  style={{
+    width: '100%',
+    marginTop: 4,
+    padding: '10px 0',
+    borderRadius: 10,
+    border: '1px solid #1f2937',
+    background: 'transparent',
+    color: '#6b7280',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    letterSpacing: 1,
+  }}
+>
+  📷  AUTO-TRACK
+</button>
       <div style={{ textAlign: 'center' }}>
         <span style={{ background: '#1f2937', borderRadius: 999, padding: '4px 16px', fontSize: 13, color: '#9ca3af' }}>
           Round {round} of {totalRounds}
@@ -200,6 +222,17 @@ export default function DrillRunner({ drill, spots, playerId, onComplete }) {
           </div>
         </div>
       )}
+<CameraTracker
+  drill={drill}
+  makes={makes}
+  shotsTaken={shotsTaken}
+  onMade={() => submitRoundTotal(makes + 1)}
+  onMissed={() => {}}
+  onAutoComplete={onComplete}
+  active={cameraActive}
+  onClose={() => setCameraActive(false)}
+/>
+
     </div>
   )
 }
