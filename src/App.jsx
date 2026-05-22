@@ -6,6 +6,7 @@ import DrillLibrary from './pages/DrillLibrary'
 import History from './pages/History'
 import PRTracker from './pages/PRTracker'
 import Stopwatch from './pages/Stopwatch'
+import PaceCalculator from './pages/PaceCalculator'
 import Scoreboard from './pages/Scoreboard'
 import RaceResults from './pages/RaceResults'
 
@@ -26,6 +27,7 @@ export default function App() {
       <Route path="/history"          element={user  ? <History />      : <Navigate to="/login" />} />
       <Route path="/prs"              element={user  ? <PRTracker />    : <Navigate to="/login" />} />
       <Route path="/stopwatch"        element={user  ? <Stopwatch />    : <Navigate to="/login" />} />
+      <Route path="/pace"             element={user  ? <PaceCalculator /> : <Navigate to="/login" />} />
       <Route path="/results"           element={user  ? <RaceResults />  : <Navigate to="/login" />} />
       <Route path="/scoreboard/:slug" element={<Scoreboard />} />
     </Routes>

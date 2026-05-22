@@ -194,6 +194,7 @@ function SetupScreen({ onStart, initialConfig }) {
   const [meetName,      setMeetName]      = useState(initialConfig?.meetName      || '')
   const [meetId,        setMeetId]        = useState(initialConfig?.meetId        || null)
   const [meetSlug,      setMeetSlug]      = useState(initialConfig?.meetSlug      || null)
+  const [recentMeets,   setRecentMeets]   = useState([])
 
   // ── Training state ──────────────────────────────────────────
   const [trainDate,     setTrainDate]     = useState(new Date().toISOString().slice(0,10))
@@ -211,14 +212,34 @@ function SetupScreen({ onStart, initialConfig }) {
 
   useEffect(() => {
     loadAllAthletes()
-    // Pre-populate meet name from last session
-    if (!initialConfig?.meetName && !meetName) {
-      try {
-        const last = JSON.parse(localStorage.getItem('sw_last_race') || '{}')
-        if (last.meetName) setMeetName(last.meetName)
-      } catch(e) {}
-    }
+    loadRecentMeets()
   }, [])
+
+  async function loadRecentMeets() {
+    try {
+      const { data } = await supabase
+        .from('meets')
+        .select('id, name, slug, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3)
+      if (!data?.length) {
+        // Fall back to localStorage
+        try {
+          const last = JSON.parse(localStorage.getItem('sw_last_race') || '{}')
+          if (last.meetName) setMeetName(last.meetName)
+        } catch(e) {}
+        return
+      }
+      setRecentMeets(data)
+      // Auto-select the most recent meet if not already set
+      if (!initialConfig?.meetId) {
+        setMeetId(data[0].id)
+        setMeetSlug(data[0].slug)
+        setMeetName(data[0].name)
+      }
+    } catch(e) { console.error(e) }
+  }
 
   async function loadAllAthletes() {
     setLoadingAthletes(true)
@@ -303,11 +324,33 @@ function SetupScreen({ onStart, initialConfig }) {
             {/* Meet */}
             <div style={S.section}>
               <label style={S.label}>MEET</label>
+              {recentMeets.length > 0 && (
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
+                  {recentMeets.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setMeetId(m.id); setMeetSlug(m.slug); setMeetName(m.name) }}
+                      style={{
+                        padding:'7px 14px', borderRadius:999, fontSize:13, fontWeight:600, cursor:'pointer',
+                        border:`1.5px solid ${meetId===m.id?'#f97316':'#1f2937'}`,
+                        background: meetId===m.id?'#f9731622':'#111827',
+                        color: meetId===m.id?'#f97316':'#9ca3af',
+                        display:'flex', flexDirection:'column', alignItems:'flex-start', gap:1
+                      }}
+                    >
+                      <span>{m.name}</span>
+                      <span style={{ fontSize:10, color: meetId===m.id?'#f97316aa':'#4b5563' }}>
+                        {new Date(m.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <input
                 style={S.input}
                 value={meetName}
                 onChange={e => { setMeetName(e.target.value); setMeetId(null); setMeetSlug(null) }}
-                placeholder="Meet name (e.g. OFSAA 2026)"
+                placeholder="Or type a new meet name..."
               />
             </div>
 
@@ -1398,14 +1441,6 @@ function ResultsScreen({ runnerState, config, onNewRace }) {
                 </div>
               )}
             </div>
-
-            <button
-              onClick={saveToPRTracker}
-              disabled={saving || !selectedPrEventId}
-              style={{ ...styles.primaryBtn, background: saving ? '#1f2937' : '#f97316', color: saving ? '#6b7280' : '#fff', cursor: saving || !selectedPrEventId ? 'not-allowed' : 'pointer' }}
-            >
-              {saving ? 'Saving...' : '💾 Save Results'}
-            </button>
           </div>
         )}
         {saved && (

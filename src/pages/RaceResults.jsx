@@ -196,11 +196,22 @@ function RunnerRow({ athlete, splitDistances, totalDistance, isFirst }) {
 }
 
 // ── Race card ──────────────────────────────────────────────────
-function RaceCard({ race }) {
+function RaceCard({ race, onDeleted }) {
   const [open, setOpen] = useState(false)
   const [athletes, setAthletes] = useState([])
   const [loading, setLoading] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function deleteRace(e) {
+    e.stopPropagation()
+    if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
+    setDeleting(true)
+    await supabase.from('race_athletes').delete().eq('race_id', race.id)
+    await supabase.from('races').delete().eq('id', race.id)
+    onDeleted?.(race.id)
+  }
 
   const finishers = athletes
     .filter(a => a.status !== 'dnf')
@@ -222,7 +233,6 @@ function RaceCard({ race }) {
       .select('id, name, place, final_time_ms, status, splits, player_id')
       .eq('race_id', race.id)
       .order('final_time_ms', { ascending: true })
-    console.log('race_athletes data:', data, 'for race:', race.id)
     setAthletes(data || [])
     setLoaded(true)
     setLoading(false)
@@ -290,6 +300,21 @@ function RaceCard({ race }) {
           </div>
         )}
 
+        {/* Delete button */}
+        <button
+          onClick={deleteRace}
+          style={{
+            background: confirmDelete ? 'rgba(239,68,68,0.15)' : 'none',
+            border: confirmDelete ? '1px solid rgba(239,68,68,0.4)' : 'none',
+            borderRadius: 6, color: confirmDelete ? '#f87171' : '#374151',
+            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            padding: '4px 8px', flexShrink: 0,
+            letterSpacing: 0.5, transition: 'all 0.15s'
+          }}
+        >
+          {deleting ? '...' : confirmDelete ? 'Confirm' : '✕'}
+        </button>
+
         <div style={{
           color: '#374151', fontSize: 11, flexShrink: 0,
           transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -337,11 +362,28 @@ function RaceCard({ race }) {
 }
 
 // ── Meet card ──────────────────────────────────────────────────
-function MeetCard({ meet }) {
+function MeetCard({ meet, onDeleted }) {
   const [open, setOpen] = useState(false)
   const [races, setRaces] = useState([])
   const [loading, setLoading] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function deleteMeet(e) {
+    e.stopPropagation()
+    if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
+    setDeleting(true)
+    // Delete all race_athletes, then races, then meet
+    const { data: raceRows } = await supabase.from('races').select('id').eq('meet_id', meet.id)
+    if (raceRows?.length) {
+      const ids = raceRows.map(r => r.id)
+      await supabase.from('race_athletes').delete().in('race_id', ids)
+      await supabase.from('races').delete().eq('meet_id', meet.id)
+    }
+    await supabase.from('meets').delete().eq('id', meet.id)
+    onDeleted?.(meet.id)
+  }
 
   async function load() {
     if (loaded) { setOpen(o => !o); return }
@@ -404,6 +446,21 @@ function MeetCard({ meet }) {
           </div>
         </div>
 
+        {/* Delete button */}
+        <button
+          onClick={deleteMeet}
+          style={{
+            background: confirmDelete ? 'rgba(239,68,68,0.15)' : 'none',
+            border: confirmDelete ? '1px solid rgba(239,68,68,0.4)' : '#1f2937 1px solid',
+            borderRadius: 6, color: confirmDelete ? '#f87171' : '#374151',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            padding: '5px 10px', flexShrink: 0,
+            letterSpacing: 0.5, transition: 'all 0.15s'
+          }}
+        >
+          {deleting ? '...' : confirmDelete ? 'Confirm?' : '✕'}
+        </button>
+
         <div style={{
           color: '#374151', fontSize: 12, flexShrink: 0,
           transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -423,7 +480,7 @@ function MeetCard({ meet }) {
               No races in this meet
             </div>
           ) : (
-            races.map(race => <RaceCard key={race.id} race={race} />)
+            races.map(race => <RaceCard key={race.id} race={race} onDeleted={id => setRaces(prev => prev.filter(r => r.id !== id))} />)
           )}
         </div>
       )}
@@ -443,20 +500,21 @@ export default function RaceResults() {
 
   async function loadMeets() {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('meets')
-      .select(`
-        id, name, slug, created_at,
-        races(count)
-      `)
+      .select('id, name, slug, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-    // Flatten race count
-    const mapped = (data || []).map(m => ({
-      ...m,
-      race_count: m.races?.[0]?.count ?? 0
+    if (error) { console.error('loadMeets error:', error); setLoading(false); return }
+    // Get race counts separately
+    const meetsWithCount = await Promise.all((data || []).map(async m => {
+      const { count } = await supabase
+        .from('races')
+        .select('*', { count: 'exact', head: true })
+        .eq('meet_id', m.id)
+      return { ...m, race_count: count ?? 0 }
     }))
-    setMeets(mapped)
+    setMeets(meetsWithCount)
     setLoading(false)
   }
 
@@ -533,7 +591,7 @@ export default function RaceResults() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {filtered.map(meet => (
-              <MeetCard key={meet.id} meet={meet} />
+              <MeetCard key={meet.id} meet={meet} onDeleted={id => setMeets(prev => prev.filter(m => m.id !== id))} />
             ))}
           </div>
         )}

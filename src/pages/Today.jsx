@@ -106,6 +106,7 @@ export default function Today() {
             { label: 'Log PR', sub: 'Quick entry', icon: '➕', path: '/prs?new=1', color: '#10b981' },
             { label: 'Stopwatch', sub: 'Race & time splits', icon: '⏱', path: '/stopwatch', color: '#f43f5e' },
             { label: 'Race Results', sub: 'Meets, times & splits', icon: '🏁', path: '/results', color: '#22c55e' },
+            { label: 'Pace Calc', sub: 'Time, pace & distance', icon: '📐', path: '/pace', color: '#06b6d4' },
           ].map(({ label, sub, icon, path, color }) => (
             <button
               key={path}
