@@ -196,13 +196,37 @@ function RunnerRow({ athlete, splitDistances, totalDistance, isFirst }) {
 }
 
 // ── Race card ──────────────────────────────────────────────────
-function RaceCard({ race, onDeleted }) {
+function RaceCard({ race, meetId, onDeleted }) {
   const [open, setOpen] = useState(false)
   const [athletes, setAthletes] = useState([])
   const [loading, setLoading] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [moving, setMoving] = useState(false)
+  const [allMeets, setAllMeets] = useState([])
+  const [moveLoading, setMoveLoading] = useState(false)
+
+  async function openMove(e) {
+    e.stopPropagation()
+    setMoveLoading(true)
+    const { data } = await supabase
+      .from('meets')
+      .select('id, name, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10)
+    setAllMeets(data || [])
+    setMoving(true)
+    setMoveLoading(false)
+  }
+
+  async function moveToMeet(e, targetMeetId) {
+    e.stopPropagation()
+    const { error } = await supabase.from('races').update({ meet_id: targetMeetId }).eq('id', race.id)
+    if (error) { console.error('moveToMeet error:', error); return }
+    onDeleted?.(race.id)
+    setMoving(false)
+  }
 
   async function deleteRace(e) {
     e.stopPropagation()
@@ -249,77 +273,88 @@ function RaceCard({ race, onDeleted }) {
       transition: 'all 0.2s'
     }}>
       {/* Race header */}
-      <div
-        onClick={load}
-        style={{
-          padding: '13px 16px', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}
-      >
-        {/* Status dot */}
-        <div style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: statusColor, flexShrink: 0,
-          boxShadow: race.status === 'in-progress' ? `0 0 8px ${statusColor}` : 'none'
-        }} />
-
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '13px 16px', gap: 12 }}>
+        {/* Clickable area */}
+        <div
+          onClick={load}
+          style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+        >
+          {/* Status dot */}
           <div style={{
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontSize: 17, fontWeight: 800,
-            color: '#f0f4f8', letterSpacing: 0.3,
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-          }}>
-            {race.name || `${race.gender !== 'mixed' ? race.gender + ' ' : ''}${race.category ? race.category + ' ' : ''}${race.distance_meters ? race.distance_meters + 'm' : 'Race'}`}
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 3, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, color: statusColor, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
-              {statusLabel}
-            </span>
-            {race.distance_meters && (
-              <span style={{ fontSize: 11, color: '#4b5563' }}>{race.distance_meters}m</span>
-            )}
-            {race.category && (
-              <span style={{ fontSize: 11, color: '#4b5563' }}>{race.category}</span>
-            )}
-            {race.gender && race.gender !== 'mixed' && (
-              <span style={{ fontSize: 11, color: '#4b5563', textTransform: 'capitalize' }}>{race.gender}</span>
-            )}
-          </div>
-        </div>
+            width: 8, height: 8, borderRadius: '50%',
+            background: statusColor, flexShrink: 0,
+            boxShadow: race.status === 'in-progress' ? `0 0 8px ${statusColor}` : 'none'
+          }} />
 
-        {/* Winner preview */}
-        {winner && !open && (
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 11, color: '#4b5563', marginBottom: 1 }}>🥇 {winner.name?.split(' ')[0]}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
               fontFamily: "'Barlow Condensed', sans-serif",
-              fontSize: 15, fontWeight: 700, color: '#4ade80',
-              fontVariantNumeric: 'tabular-nums'
-            }}>{formatMs(winner.final_time_ms)}</div>
+              fontSize: 17, fontWeight: 800,
+              color: '#f0f4f8', letterSpacing: 0.3,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+            }}>
+              {race.name || `${race.gender !== 'mixed' ? race.gender + ' ' : ''}${race.category ? race.category + ' ' : ''}${race.distance_meters ? race.distance_meters + 'm' : 'Race'}`}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: statusColor, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+                {statusLabel}
+              </span>
+              {race.distance_meters && (
+                <span style={{ fontSize: 11, color: '#4b5563' }}>{race.distance_meters}m</span>
+              )}
+              {race.category && (
+                <span style={{ fontSize: 11, color: '#4b5563' }}>{race.category}</span>
+              )}
+              {race.gender && race.gender !== 'mixed' && (
+                <span style={{ fontSize: 11, color: '#4b5563', textTransform: 'capitalize' }}>{race.gender}</span>
+              )}
+            </div>
           </div>
-        )}
 
-        {/* Delete button */}
+          {/* Winner preview */}
+          {winner && !open && (
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: 11, color: '#4b5563', marginBottom: 1 }}>🥇 {winner.name?.split(' ')[0]}</div>
+              <div style={{
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontSize: 15, fontWeight: 700, color: '#4ade80',
+                fontVariantNumeric: 'tabular-nums'
+              }}>{formatMs(winner.final_time_ms)}</div>
+            </div>
+          )}
+
+          <div style={{
+            color: '#374151', fontSize: 11, flexShrink: 0,
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s'
+          }}>▼</div>
+        </div>
+
+        {/* Action buttons — outside clickable area */}
+        <button
+          onClick={openMove}
+          style={{
+            background: 'none', border: '1px solid #1f2937',
+            borderRadius: 6, color: '#4b5563',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            padding: '4px 10px', flexShrink: 0, transition: 'all 0.15s'
+          }}
+        >
+          {moveLoading ? '...' : '⇄'}
+        </button>
+
         <button
           onClick={deleteRace}
           style={{
             background: confirmDelete ? 'rgba(239,68,68,0.15)' : 'none',
-            border: confirmDelete ? '1px solid rgba(239,68,68,0.4)' : 'none',
+            border: confirmDelete ? '1px solid rgba(239,68,68,0.4)' : '1px solid #1f2937',
             borderRadius: 6, color: confirmDelete ? '#f87171' : '#374151',
-            fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            padding: '4px 8px', flexShrink: 0,
-            letterSpacing: 0.5, transition: 'all 0.15s'
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            padding: '4px 8px', flexShrink: 0, transition: 'all 0.15s'
           }}
         >
           {deleting ? '...' : confirmDelete ? 'Confirm' : '✕'}
         </button>
-
-        <div style={{
-          color: '#374151', fontSize: 11, flexShrink: 0,
-          transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-          transition: 'transform 0.2s'
-        }}>▼</div>
       </div>
 
       {/* Athletes */}
@@ -357,6 +392,82 @@ function RaceCard({ race, onDeleted }) {
           )}
         </div>
       )}
+      {/* Move to meet panel */}
+      {moving && (
+        <div style={{ borderTop:'1px solid #1f2937', padding:'12px 14px', background:'#0a0f16' }}>
+          <div style={{ fontSize:11, color:'#4b5563', fontWeight:700, letterSpacing:1, textTransform:'uppercase', marginBottom:8 }}>
+            Move to Meet
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
+            {allMeets.filter(m => m.id !== (race.meet_id || meetId)).map(m => (
+              <button
+                key={m.id}
+                onClick={e => moveToMeet(e, m.id)}
+                style={{
+                  padding:'7px 14px', borderRadius:999, fontSize:13, fontWeight:600, cursor:'pointer',
+                  border:'1.5px solid #1f2937', background:'#111827', color:'#9ca3af',
+                  display:'flex', flexDirection:'column', alignItems:'flex-start', gap:1,
+                  transition:'all 0.15s'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='#f97316'; e.currentTarget.style.color='#f97316' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='#1f2937'; e.currentTarget.style.color='#9ca3af' }}
+              >
+                <span>{m.name}</span>
+                <span style={{ fontSize:10, color:'#4b5563' }}>
+                  {new Date(m.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                </span>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={e => { e.stopPropagation(); setMoving(false) }}
+            style={{ background:'none', border:'none', color:'#4b5563', fontSize:12, cursor:'pointer', padding:0 }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── All Meets Picker (used in rename flow) ─────────────────────
+function AllMeetsPicker({ currentId, selectedName, onSelect }) {
+  const [meets, setMeets] = useState([])
+
+  useEffect(() => {
+    supabase
+      .from('meets')
+      .select('id, name, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }) => setMeets(data || []))
+  }, [])
+
+  const others = meets.filter(m => m.id !== currentId)
+  if (!others.length) return null
+
+  return (
+    <div>
+      <div style={{ fontSize:10, color:'#4b5563', fontWeight:700, letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>
+        Existing Meets
+      </div>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+        {others.map(m => (
+          <button
+            key={m.id}
+            onClick={e => { e.stopPropagation(); onSelect(m.name) }}
+            style={{
+              padding:'5px 12px', borderRadius:999, fontSize:12, fontWeight:600, cursor:'pointer',
+              border:`1.5px solid ${selectedName===m.name?'#f97316':'#1f2937'}`,
+              background: selectedName===m.name?'#f9731622':'#111827',
+              color: selectedName===m.name?'#f97316':'#9ca3af',
+            }}
+          >
+            {m.name}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -369,6 +480,20 @@ function MeetCard({ meet, onDeleted }) {
   const [loaded, setLoaded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState(meet.name)
+  const [meetName, setMeetName] = useState(meet.name)
+  const [saving, setSaving] = useState(false)
+
+  async function saveName(e) {
+    e.stopPropagation()
+    if (!editName.trim() || editName === meetName) { setEditing(false); return }
+    setSaving(true)
+    await supabase.from('meets').update({ name: editName.trim() }).eq('id', meet.id)
+    setMeetName(editName.trim())
+    setSaving(false)
+    setEditing(false)
+  }
 
   async function deleteMeet(e) {
     e.stopPropagation()
@@ -391,7 +516,7 @@ function MeetCard({ meet, onDeleted }) {
     setLoading(true)
     const { data } = await supabase
       .from('races')
-      .select('id, name, event_type, distance_meters, split_distances, status, gender, category, started_at, completed_at')
+      .select('id, name, meet_id, event_type, distance_meters, split_distances, status, gender, category, started_at, completed_at')
       .eq('meet_id', meet.id)
       .order('created_at', { ascending: true })
     setRaces(data || [])
@@ -431,15 +556,54 @@ function MeetCard({ meet, onDeleted }) {
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontSize: 20, fontWeight: 900,
-            color: '#f0f4f8', letterSpacing: -0.3,
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-          }}>
-            {meet.name}
-          </div>
+        <div style={{ flex: 1, minWidth: 0 }} onClick={e => e.stopPropagation()}>
+          {editing ? (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {/* Existing meet chips */}
+              <AllMeetsPicker
+                currentId={meet.id}
+                selectedName={editName}
+                onSelect={name => setEditName(name)}
+              />
+              {/* Custom name input */}
+              <div style={{ display:'flex', gap:6 }}>
+                <input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  onKeyDown={e => { if (e.key==='Enter') saveName(e); if (e.key==='Escape') { setEditing(false); setEditName(meetName) } }}
+                  placeholder="Or type a new meet name..."
+                  style={{
+                    flex:1, background:'#080b0f', border:'1.5px solid #f97316',
+                    borderRadius:8, color:'#fff', fontSize:15, fontWeight:600,
+                    padding:'8px 12px', outline:'none', fontFamily:"'Barlow',sans-serif"
+                  }}
+                />
+                <button onClick={saveName} style={{ background:'#f97316', border:'none', borderRadius:8, color:'#fff', fontSize:13, fontWeight:700, padding:'8px 14px', cursor:'pointer', flexShrink:0 }}>
+                  {saving ? '...' : 'Save'}
+                </button>
+                <button onClick={e => { e.stopPropagation(); setEditing(false); setEditName(meetName) }} style={{ background:'none', border:'1px solid #374151', borderRadius:8, color:'#6b7280', fontSize:13, padding:'8px 10px', cursor:'pointer', flexShrink:0 }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontSize: 20, fontWeight: 900,
+                color: '#f0f4f8', letterSpacing: -0.3,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+              }}>
+                {meetName}
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); setEditing(true) }}
+                style={{ background:'none', border:'none', color:'#374151', fontSize:12, cursor:'pointer', padding:'2px 4px', flexShrink:0 }}
+              >
+                ✎
+              </button>
+            </div>
+          )}
           <div style={{ fontSize: 11, color: '#4b5563', marginTop: 2 }}>
             {meet.race_count} {meet.race_count === 1 ? 'race' : 'races'}
             {meet.created_at && ` · ${formatDate(meet.created_at)}`}
@@ -480,7 +644,7 @@ function MeetCard({ meet, onDeleted }) {
               No races in this meet
             </div>
           ) : (
-            races.map(race => <RaceCard key={race.id} race={race} onDeleted={id => setRaces(prev => prev.filter(r => r.id !== id))} />)
+            races.map(race => <RaceCard key={race.id} race={race} meetId={meet.id} onDeleted={id => setRaces(prev => prev.filter(r => r.id !== id))} />)
           )}
         </div>
       )}
