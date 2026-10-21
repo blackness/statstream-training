@@ -9,6 +9,10 @@ import Stopwatch from './pages/Stopwatch'
 import PaceCalculator from './pages/PaceCalculator'
 import Scoreboard from './pages/Scoreboard'
 import RaceResults from './pages/RaceResults'
+// Add these 3 imports at the top with the others
+import BasketballDashboard from './pages/Basketball/Dashboard'
+import BasketballEntry     from './pages/Basketball/QuickEntry'
+import BasketballTemplates from './pages/Basketball/DrillTemplates'
 
 export default function App() {
   const { user, loading } = useAuth()
@@ -21,15 +25,18 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login"            element={!user ? <Login />        : <Navigate to="/" />} />
-      <Route path="/"                 element={user  ? <Today />        : <Navigate to="/login" />} />
-      <Route path="/library"          element={user  ? <DrillLibrary /> : <Navigate to="/login" />} />
-      <Route path="/history"          element={user  ? <History />      : <Navigate to="/login" />} />
-      <Route path="/prs"              element={user  ? <PRTracker />    : <Navigate to="/login" />} />
-      <Route path="/stopwatch"        element={user  ? <Stopwatch />    : <Navigate to="/login" />} />
-      <Route path="/pace"             element={user  ? <PaceCalculator /> : <Navigate to="/login" />} />
-      <Route path="/results"           element={user  ? <RaceResults />  : <Navigate to="/login" />} />
-      <Route path="/scoreboard/:slug" element={<Scoreboard />} />
+      <Route path="/login"                element={!user ? <Login />        : <Navigate to="/" />} />
+      <Route path="/"                     element={user  ? <Today />        : <Navigate to="/login" />} />
+      <Route path="/library"              element={user  ? <DrillLibrary /> : <Navigate to="/login" />} />
+      <Route path="/history"              element={user  ? <History />      : <Navigate to="/login" />} />
+      <Route path="/prs"                  element={user  ? <PRTracker />    : <Navigate to="/login" />} />
+      <Route path="/stopwatch"            element={user  ? <Stopwatch />    : <Navigate to="/login" />} />
+      <Route path="/pace"                 element={user  ? <PaceCalculator /> : <Navigate to="/login" />} />
+      <Route path="/results"              element={user  ? <RaceResults />  : <Navigate to="/login" />} />
+      <Route path="/scoreboard/:slug"     element={<Scoreboard />} />
+      <Route path="/basketball"           element={user ? <BasketballDashboard /> : <Navigate to="/login" />} />
+      <Route path="/basketball/entry"     element={user ? <BasketballEntry />     : <Navigate to="/login" />} />
+      <Route path="/basketball/templates" element={user ? <BasketballTemplates /> : <Navigate to="/login" />} />
     </Routes>
   )
 }
