@@ -43,15 +43,15 @@ export function AuthProvider({ children }) {
   }
 }, [])
 
-  async function fetchProfile(userId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data)
-    setLoading(false)
-  }
+async function fetchProfile(userId) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle()   // ← change .single() to .maybeSingle()
+  setProfile(data ?? null)
+  setLoading(false)
+}
 
   const value = { user, profile, loading, isCoach: profile?.role === 'coach' }
 
