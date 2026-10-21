@@ -19,8 +19,21 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      else { setProfile(null); setLoading(false) }
+      if (session?.user) {
+        fetchProfile(session.user.id)
+        // track login event
+        if (_event === 'SIGNED_IN') {
+          supabase.schema('shooting_tracker').from('user_logins').insert([{
+            user_id:    session.user.id,
+            email:      session.user.email,
+            logged_in_at: new Date().toISOString(),
+            user_agent: navigator.userAgent,
+          }])
+        }
+      } else {
+        setProfile(null)
+        setLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()

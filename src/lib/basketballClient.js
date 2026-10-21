@@ -65,3 +65,44 @@ export async function duplicateLastSession(playerId, newDate, newStart) {
     p_new_start: newStart,
   })
 }
+
+export async function getSession(sessionId) {
+  return supabase
+    .schema('shooting_tracker')
+    .from('sessions')
+    .select(`
+      *,
+      players ( name ),
+      session_drills (
+        id, shots_made, shots_attempted, contested, notes, sort_order,
+        drill_template_id,
+        drill_templates ( name, goal_percent, total_attempts )
+      )
+    `)
+    .eq('id', sessionId)
+    .single()
+}
+
+export async function deleteSession(sessionId) {
+  return supabase
+    .schema('shooting_tracker')
+    .from('sessions')
+    .delete()
+    .eq('id', sessionId)
+}
+
+export async function updateSessionDrills(sessionId, drills) {
+  // delete existing drill entries for this session then reinsert
+  const { error: delErr } = await supabase
+    .schema('shooting_tracker')
+    .from('session_drills')
+    .delete()
+    .eq('session_id', sessionId)
+  if (delErr) return { error: delErr }
+  if (drills.length === 0) return { data: [], error: null }
+  return supabase
+    .schema('shooting_tracker')
+    .from('session_drills')
+    .insert(drills)
+    .select()
+}

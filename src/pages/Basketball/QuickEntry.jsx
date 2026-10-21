@@ -209,15 +209,38 @@ export default function QuickEntry() {
     }
 
     const drillPayloads = drillEntries
-      .filter(e => !e.skipped && e.shots_made !== '' && e.shots_made !== null)
-      .map((e, i) => ({
-        session_id:        session.id,
-        drill_template_id: e.template.id,
-        shots_made:        parseInt(e.shots_made),
-        shots_attempted:   e.template.total_attempts,
-        contested:         e.template.contested,
-        sort_order:        i,
-      }))
+  .filter(e => {
+    if (e.skipped) return false
+    const isMakeCount = e.template.drill_type === 'make_count'
+    const isFreeThrow = e.template.drill_type === 'free_throw'
+    if (isMakeCount) return e.shots_attempted !== '' && e.shots_attempted !== null
+    if (isFreeThrow) {
+      const m = parseInt(e.shots_made) || 0
+      const a = parseInt(e.shots_attempted) || 0
+      return a > 0
+    }
+    return e.shots_made !== '' && e.shots_made !== null
+      })
+      .map((e, i) => {
+        const isMakeCount = e.template.drill_type === 'make_count'
+        const isFreeThrow = e.template.drill_type === 'free_throw'
+        const shots_made =
+          isMakeCount ? (e.template.required_makes || 0) :
+          isFreeThrow ? (parseInt(e.shots_made) || 0) :
+          (parseInt(e.shots_made) || 0)
+        const shots_attempted =
+          isMakeCount ? (parseInt(e.shots_attempted) || 0) :
+          isFreeThrow ? (parseInt(e.shots_attempted) || 0) :
+          (e.template.total_attempts || 0)
+        return {
+          session_id:        session.id,
+          drill_template_id: e.template.id,
+          shots_made,
+          shots_attempted,
+          contested:         e.template.contested || false,
+          sort_order:        i,
+        }
+      })
 
     if (drillPayloads.length > 0) {
       const { error: dErr } = await createSessionDrills(drillPayloads)
@@ -264,16 +287,18 @@ export default function QuickEntry() {
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         {/* Player + date/time */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            {players.map(p => (
-              <button key={p.id} onClick={() => setSelectedPlayer(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  selectedPlayer?.id === p.id ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'
-                }`}>
-                {p.name}
-              </button>
-            ))}
-          </div>
+          {players.length > 1 && (
+            <div className="flex gap-2 flex-wrap">
+              {players.map(p => (
+                <button key={p.id} onClick={() => setSelectedPlayer(p)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedPlayer?.id === p.id ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'
+                  }`}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-400 block mb-1">Date</label>

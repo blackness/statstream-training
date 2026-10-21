@@ -13,6 +13,7 @@ import RaceResults from './pages/RaceResults'
 import BasketballDashboard from './pages/Basketball/Dashboard'
 import BasketballEntry     from './pages/Basketball/QuickEntry'
 import BasketballTemplates from './pages/Basketball/DrillTemplates'
+import SessionDetail from './pages/Basketball/SessionDetail'
 
 export default function App() {
   const { user, loading } = useAuth()
@@ -37,6 +38,7 @@ export default function App() {
       <Route path="/basketball"           element={user ? <BasketballDashboard /> : <Navigate to="/login" />} />
       <Route path="/basketball/entry"     element={user ? <BasketballEntry />     : <Navigate to="/login" />} />
       <Route path="/basketball/templates" element={user ? <BasketballTemplates /> : <Navigate to="/login" />} />
+      <Route path="/basketball/session/:sessionId" element={user ? <SessionDetail /> : <Navigate to="/login" />} />
     </Routes>
   )
 }

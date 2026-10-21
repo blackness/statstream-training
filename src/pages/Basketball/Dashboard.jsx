@@ -9,6 +9,8 @@ import { getPlayers, getSessions } from '../../lib/basketballClient'
 import CorrelationChart from '../../components/Basketball/CorrelationChart'
 import CalendarHeatmap  from '../../components/Basketball/CalendarHeatmap'
 import DrillTrends      from '../../components/Basketball/DrillTrends'
+import SwipeToDelete from '../../components/Basketball/SwipeToDelete'
+import { deleteSession } from '../../lib/basketballClient'
 
 function enrichSession(s) {
   const drills       = s.session_drills || []
@@ -99,16 +101,20 @@ export default function Dashboard() {
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         {/* Player selector */}
         <div className="flex gap-2 flex-wrap">
-          {players.map(p => (
-            <button key={p.id} onClick={() => setSelectedPlayer(p)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedPlayer?.id === p.id
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}>
-              {p.name}
-            </button>
-          ))}
+          {players.length > 1 && (
+            <div className="flex gap-2 flex-wrap">
+              {players.map(p => (
+                <button key={p.id} onClick={() => setSelectedPlayer(p)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedPlayer?.id === p.id
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Stat cards — always visible */}
@@ -180,32 +186,43 @@ export default function Dashboard() {
               <div className="px-4 py-3 border-b border-gray-800">
                 <h2 className="text-sm font-medium text-gray-300">Recent Sessions</h2>
               </div>
-              {recentSessions.length === 0 ? (
-                <div className="px-4 py-8 text-center text-gray-500 text-sm">
-                  No sessions yet — tap Log Session to get started
-                </div>
-              ) : recentSessions.map(s => {
-                const pct      = s.pct_made
-                const pctColor = pct >= 80 ? 'text-green-400' : pct >= 60 ? 'text-orange-400' : 'text-red-400'
-                return (
-                  <div key={s.id} className="px-4 py-3 flex items-center justify-between border-b border-gray-800 last:border-0">
-                    <div>
-                      <div className="text-sm font-medium">{fmtSessionDate(s.session_date)}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {s.total_made}/{s.total_attempts} makes
-                        {s.mood        != null && ` · mood ${s.mood}/10`}
-                        {s.sleep_hours != null && ` · sleep ${s.sleep_hours}h`}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-lg font-bold ${pctColor}`}>
-                        {pct != null ? `${pct.toFixed(1)}%` : '—'}
-                      </span>
-                      <ChevronRight size={16} className="text-gray-600" />
-                    </div>
+                {recentSessions.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                    No sessions yet — tap Log Session to get started
                   </div>
-                )
-              })}
+                ) : recentSessions.map(s => {
+                  const pct      = s.pct_made
+                  const pctColor = pct >= 80 ? 'text-green-400' : pct >= 60 ? 'text-orange-400' : 'text-red-400'
+                  return (
+                    <SwipeToDelete
+                      key={s.id}
+                      onDelete={async () => {
+                        await deleteSession(s.id)
+                        setSessions(prev => prev.filter(r => r.id !== s.id))
+                      }}
+                    >
+                      <div
+                        onClick={() => navigate(`/basketball/session/${s.id}`)}
+                        className="px-4 py-3 flex items-center justify-between border-b border-gray-800 last:border-0 cursor-pointer hover:bg-gray-800 transition-colors bg-gray-900"
+                      >
+                        <div>
+                          <div className="text-sm font-medium">{fmtSessionDate(s.session_date)}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {s.total_made}/{s.total_attempts} makes
+                            {s.mood        != null && ` · mood ${s.mood}/10`}
+                            {s.sleep_hours != null && ` · sleep ${s.sleep_hours}h`}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-lg font-bold ${pctColor}`}>
+                            {pct != null ? `${pct.toFixed(1)}%` : '—'}
+                          </span>
+                          <ChevronRight size={16} className="text-gray-600" />
+                        </div>
+                      </div>
+                    </SwipeToDelete>
+                  )
+                })}
             </div>
           </>
         )}
