@@ -106,3 +106,11 @@ export async function updateSessionDrills(sessionId, drills) {
     .insert(drills)
     .select()
 }
+
+export async function updateSession(sessionId, fields) {
+  return supabase
+    .schema('shooting_tracker')
+    .from('sessions')
+    .update(fields)
+    .eq('id', sessionId)
+}
